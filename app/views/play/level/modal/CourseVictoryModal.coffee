@@ -48,7 +48,10 @@ module.exports = class CourseVictoryModal extends ModalView
     if @courseID and not @course
       @course = new Course().setURL "/db/course/#{@courseID}"
       @course = @supermodel.loadModel(@course, 'course').model
-      @listenToOnce @course, 'sync', @onCourseLoaded
+      if @course.loading
+        @listenToOnce @course, 'sync', @onCourseLoaded
+      else
+        @onCourseLoaded()
     else if @course
       @onCourseLoaded()
 
@@ -81,20 +84,14 @@ module.exports = class CourseVictoryModal extends ModalView
     heroOriginals = _.uniq _.flatten heroOriginals
     #project = ['original', 'rasterIcon', 'name', 'soundTriggers', 'i18n']  # This is what we need, but the PlayHeroesModal needs more, and so we load more to fill up the supermodel.
     project = ['original', 'rasterIcon', 'name', 'slug', 'soundTriggers', 'featureImages', 'gems', 'heroClass', 'description', 'components', 'extendedName', 'unlockLevelName', 'i18n']
-    for itemOriginal in itemOriginals
-      item = new ThangType()
-      item.url = "/db/thang.type/#{itemOriginal}/version"
-      item.project = project
-      @supermodel.loadModel(item, 'thang')
-      @newItems.add(item)
+    for [newThangTypeCollection, originals] in [[@newItems, itemOriginals], [@newHeroes, heroOriginals]]
+      for original in originals
+        thang= new ThangType()
+        thang.url = "/db/thang.type/#{original}/version"
+        thang.project = project
+        @supermodel.loadModel(thang, 'thang')
+        newThangTypeCollection.add(thang)
       
-    for heroOriginal in heroOriginals
-      hero = new ThangType()
-      hero.url = "/db/thang.type/#{heroOriginal}/version"
-      hero.project = project
-      @supermodel.loadModel(hero, 'thang')
-      @newHeroes.add(hero)
-
     @newEarnedAchievements = []
     for achievement in @achievements.models
       continue unless achievement.completed
@@ -164,12 +161,10 @@ module.exports = class CourseVictoryModal extends ModalView
 
   onNextLevel: ->
     link = "/play/level/#{@nextLevel.get('slug')}?course=#{@courseID}&course-instance=#{@courseInstanceID}"
-    @hide()
     application.router.navigate(link, {trigger: true})
 
   onDone: ->
-    link = link = "/courses/#{@courseID}/#{@courseInstanceID}"
-    @hide()
+    link = "/courses/#{@courseID}/#{@courseInstanceID}"
     application.router.navigate(link, {trigger: true})
     
     
